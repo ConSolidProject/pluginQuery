@@ -2,6 +2,7 @@
   "name": "projectquery",
   "version": "1.0.0",
   "port": 8083,
+  "domain": "https://consolidproject.github.io/pluginQuery/",
   "scripts": {
     "start": "webpack serve --config config/webpack.dev.js",
     "build:dev": "webpack --config config/webpack.dev.js",
