@@ -11,7 +11,7 @@ const prodConfig = {
     },
     plugins: [
         new ModuleFederationPlugin({
-            name: 'projectManager',
+            name: packageJson.name,
             filename: 'remoteEntry.js',
             exposes: {
                 './index': './src/bootstrap'

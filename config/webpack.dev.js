@@ -25,7 +25,6 @@ const devConfig = {
       name: packageJson.name,
       filename: 'remoteEntry.js',
       exposes: {
-        './App': './src/App.js',
         './index': './src/bootstrap'
       },
       shared: {
@@ -49,9 +48,6 @@ const devConfig = {
         events: {eager: true, requiredVersion: deps.events}
       },
       
-    }),
-    new HtmlWebpackPlugin({
-      template: "./public/index.html",
     }),
   ],
 };

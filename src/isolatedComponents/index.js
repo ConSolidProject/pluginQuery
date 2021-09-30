@@ -17,7 +17,7 @@ const packageJSON = require("../../package.json");
 
 export default function Isolated() {
   const module = {
-    url: "http://example.org/remoteEntry.js", // can be safely changed
+    url: packageJSON.domain, // can be safely changed
     scope: packageJSON.name, // don't change
     label: packageJSON.name, // can be safely changed
     module: "./index", // don't change
