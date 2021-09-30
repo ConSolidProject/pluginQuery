@@ -147,7 +147,7 @@ const Plugin = ({ sharedProps, inactive }) => {
 
     const res = await results.bindings() 
     setQueryResults(res)
-    const promisified = res.map((binding) => doPropagateImmediate(binding, queryId))
+    const promisified = res.map((binding) => doPropagateImmediate(binding, queryId)) 
     const finalSelectionArray = await Promise.all(promisified)
     const finalSelection = finalSelectionArray.flat()
     setSelectedElements(finalSelection)
