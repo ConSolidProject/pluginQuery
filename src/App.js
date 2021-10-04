@@ -69,25 +69,35 @@ const Plugin = ({ sharedProps, inactive }) => {
     for (const item of values) {
       const le_qe = newEngine()
       // find link element in props.ttl of
+
       const linkElementQuery = `
         PREFIX lbd: <https://lbdserver.org/vocabulary#>
-        SELECT ?art WHERE {
+        PREFIX owl: <http://www.w3.org/2002/07/owl#>
+        SELECT DISTINCT ?art ?alias WHERE {
           ?art lbd:hasLinkElement ?le .
           ?le lbd:hasIdentifier ?id . 
           ?id lbd:identifier <${item}> .
+
+          OPTIONAL { ?art owl:sameAs ?alias }
         }`;
 
-
-      const le_results = await le_qe.query(linkElementQuery, {sources: [store]});
+      const le_results = await le_qe.query(linkElementQuery, {sources: [...activeResources.map(a => a.artefactRegistry)]});
       const bindings = await le_results.bindings()
       bindings.forEach((bind)  => {
         const art = bind.get("?art").id;
+        try {
+          const alias = bind.get("?alias").id
+          bindingResult.push({global: [alias], selectionId: queryId})
+        } catch (error) {
+          
+        }
         // actually you need to find the aliases (sameAs) as well
         // so it is an array
         bindingResult.push({global: [art], selectionId: queryId})
       })
+      // return bindingResult
+      setSelectedElements(se => [...se, ...bindingResult])
 
-      return bindingResult
     }
   }
 
@@ -145,12 +155,11 @@ const Plugin = ({ sharedProps, inactive }) => {
       sources: RDFsources.map((el) => el.main),
     });
 
-    const res = await results.bindings() 
+    const res = await results.bindings()
     setQueryResults(res)
     const promisified = res.map((binding) => doPropagateImmediate(binding, queryId)) 
     const finalSelectionArray = await Promise.all(promisified)
-    const finalSelection = finalSelectionArray.flat()
-    setSelectedElements(finalSelection)
+    // setSelectedElements(finalSelection)
     // save the query results themselves
     // results.bindingsStream.on("data", async (binding) => {
     //   setQueryResults([...queryResults, binding]);
