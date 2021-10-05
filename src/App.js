@@ -270,7 +270,7 @@ const Plugin = ({ sharedProps, inactive }) => {
         >
           Query
         </Button>
-        <ul>
+        <ul style={{overflowY: "scroll", maxHeight: 500, fontSize: 12}}>
           {queryResults.map((item, index) => {
             return <li key={index}>{JSON.stringify(item)}</li>
           })}

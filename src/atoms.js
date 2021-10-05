@@ -9,12 +9,12 @@ const session = atom({
 
 const projects = atom({
     key: "projects",
-    default: ["http://localhost:5000/jeroen/lbd/642f0417-ce23-4d9d-8806-c078aed93ae1/"]
+    default: ["http://localhost:5000/jeroen/lbd/f65db6eb-fc13-4ee7-955a-cf93fdf29d5b/"]
 })
 
 const activeResources = atom({
     key: "activeResources",
-    default: []
+    default: [{main: "https://pod.lbdserver.org/jeroen/lbd/f65db6eb-fc13-4ee7-955a-cf93fdf29d5b/architectural_duplex.ttl", metadata: "https://pod.lbdserver.org/jeroen/lbd/f65db6eb-fc13-4ee7-955a-cf93fdf29d5b/architectural_duplex.ttl.props.ttl"}]
 })
 
 const selectedElements = atom({
