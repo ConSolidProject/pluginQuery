@@ -59,8 +59,8 @@ const Plugin = ({ sharedProps, inactive }) => {
   }, [query]);
 
   async function doPropagateImmediate(binding, queryId) {
-    // flatten the list of results & reduce the query to only those variables that are checked
-    const values = variables
+    try {
+      const values = variables
       .filter((variable) => {
         return variable.checked;
       })
@@ -81,7 +81,9 @@ const Plugin = ({ sharedProps, inactive }) => {
           OPTIONAL { ?art owl:sameAs ?alias }
         }`;
 
-      const le_results = await le_qe.query(linkElementQuery, {sources: [...activeResources.map(a => a.artefactRegistry)]});
+      // const sources = [...activeResources.map(a => a.artefactRegistry)]
+      const le_results = await le_qe.query(linkElementQuery, {sources: [store] });
+      le_qe.invalidateHttpCache()
       const bindings = await le_results.bindings()
       bindings.forEach((bind)  => {
         const art = bind.get("?art").id;
@@ -96,127 +98,81 @@ const Plugin = ({ sharedProps, inactive }) => {
         bindingResult.push({global: [art], selectionId: queryId})
       })
       // return bindingResult
-      setSelectedElements(se => [...se, ...bindingResult])
-
+      return bindingResult
+    }
+    } catch (error) {
+        console.log(`error in query - doPropagateImmediate`, error)
     }
   }
 
-  async function propagateQuery(results, queryId) {
-    // flatten the list of results & reduce the query to only those variables that are checked
-    const selectedArtefacts = []
-    for (const binding of results) {
-      const values = variables
-      .filter((variable) => {
-        return variable.checked;
-      })
-      .map((e) => binding.get(`?${e.name}`).id);
+  // async function propagateQuery(results, queryId) {
+  //   // flatten the list of results & reduce the query to only those variables that are checked
+  //   const selectedArtefacts = []
+  //   for (const binding of results) {
+  //     const values = variables
+  //     .filter((variable) => {
+  //       return variable.checked;
+  //     })
+  //     .map((e) => binding.get(`?${e.name}`).id);
       
-    for (const item of values) {
-      const le_qe = newEngine()
-      // find link element in props.ttl of
-      const linkElementQuery = `
-        PREFIX lbd: <https://lbdserver.org/vocabulary#>
-        SELECT ?art WHERE {
-          ?art lbd:hasLinkElement ?le .
-          ?le lbd:hasIdentifier ?id . 
-          ?id lbd:identifier <${item}> .
-        }`;
+  //   for (const item of values) {
+  //     const le_qe = newEngine()
+  //     // find link element in props.ttl of
+  //     const linkElementQuery = `
+  //       PREFIX lbd: <https://lbdserver.org/vocabulary#>
+  //       SELECT ?art WHERE {
+  //         ?art lbd:hasLinkElement ?le .
+  //         ?le lbd:hasIdentifier ?id . 
+  //         ?id lbd:identifier <${item}> .
+  //       }`;
 
 
-      const le_results = await le_qe.query(linkElementQuery, {sources: [store]});
+  //     const le_results = await le_qe.query(linkElementQuery, {sources: [store]});
+  //     console.log(`le_results`, le_results)
+  //     le_results.bindingsStream.on("data", async (bind) => {
+  //         const art = bind.get("?art").id;
+  //         selectedArtefacts.push({global: art, selectionId: queryId})
+  //     });
 
-      le_results.bindingsStream.on("data", async (bind) => {
-          const art = bind.get("?art").id;
-          selectedArtefacts.push({global: art, selectionId: queryId})
-      });
-
-      // le_results.bindingsStream.on('end', () => {
-      //   setSelectedElements(selectedArtefacts)
-      // })
-    }
-    }
-  }
+  //     // le_results.bindingsStream.on('end', () => {
+  //     //   setSelectedElements(selectedArtefacts)
+  //     // })
+  //   }
+  //   }
+  // }
 
 
   async function queryProject(e) {
-    setSelectedElements([])
-    setQueryResults([]);
-    const queryId = v4()
-    setSelectionId(queryId)
-    const queryEngine = newEngine();
-
-    // query only active resouces that are RDF (Future: better mime type extractor than relying on extension)
-    const RDFsources = activeResources.filter((e) => {
-      return e.main.endsWith(".ttl");
-    });
-
-    // query the RDF sources that are selected, use the selected query
-    const results = await queryEngine.query(query, {
-      sources: RDFsources.map((el) => el.main),
-    });
-
-    const res = await results.bindings()
-    setQueryResults(res)
-    const promisified = res.map((binding) => doPropagateImmediate(binding, queryId)) 
-    const finalSelectionArray = await Promise.all(promisified)
-    // setSelectedElements(finalSelection)
-    // save the query results themselves
-    // results.bindingsStream.on("data", async (binding) => {
-    //   setQueryResults([...queryResults, binding]);
-    //   setSelectedElements((sel) => [...sel, ...res])
-    // });
+    try {
+      setSelectedElements([])
+      setQueryResults([]);
+      const queryId = v4()
+      setSelectionId(queryId)
+      const queryEngine = newEngine();
+  
+      // query only active resouces that are RDF (Future: better mime type extractor than relying on extension)
+      const RDFsources = activeResources.filter((e) => {
+        return e.main.endsWith(".ttl");
+      });
+  
 
 
-    // only look for project references when "propagate" is active/true
-    // if (propagate) {
-    //   // flatten the list of results & reduce the query to only those variables that are checked
-    //   let preselection = results.results.bindings.map((b) => {
-    //     const values = variables
-    //       .filter((variable) => {
-    //         return variable.checked;
-    //       })
-    //       .map((e) => b[e.name].value);
-    //     return values;
-    //   });
-    //   const flattened = preselection.flat();
-
-    //   const selectionArtefacts = [];
-    //   for (const item of flattened) {
-    //     // find link element in props.ttl of
-    //     const linkElementQuery = `
-    //   PREFIX lbd: <https://lbdserver.org/vocabulary#>
-    //   SELECT ?le WHERE {
-    //     ?le lbd:hasIdentifier ?id . 
-    //     ?id lbd:identifier <${item}> .
-    //   }`;
-    //     const sources = activeResources
-    //       .filter((el) => el.resource.endsWith(".ttl"))
-    //       .map((i) => {
-    //         return i.resource + ".props.ttl";
-    //       });
-
-    //     const le_results = await queryEngine.query(linkElementQuery, {
-    //       sources,
-    //     });
-    //     const le = le_results.results.bindings.map((i) => {
-    //       return i.le.value;
-    //     });
-    //     for (const l of le) {
-    //       // find global artefact in local artefactregistry
-    //       const globalArtefactQuery = `
-    //             PREFIX lbd: <https://lbdserver.org/vocabulary#>
-    //             SELECT ?art WHERE {
-    //               ?art lbd:hasLinkElement <${l}> . 
-    //             }`;
-    //       const art_results = await queryEngine.query(globalArtefactQuery, {
-    //         sources: [project.local + "artefactRegistry.ttl"],
-    //       });
-    //       const art = art_results.results.bindings[0].art.value;
-    //       selectionArtefacts.push({ global: art });
-    //     }
-    //   }
-    //   setSelectedElements(selectionArtefacts);
-    // }
+      // query the RDF sources that are selected, use the selected query
+      const results = await queryEngine.query(query, {
+        sources: RDFsources.map((el) => el.main),
+      });
+  
+      queryEngine.invalidateHttpCache()
+  
+      let res = await results.bindings()
+      setQueryResults(res)
+      const promisified = res.map((binding) => doPropagateImmediate(binding, queryId)) 
+      const finalSelectionArray = await Promise.all(promisified)
+      const finalSelection = finalSelectionArray.flat()
+      setSelectedElements(finalSelection)
+    } catch (error) {
+      console.log(`error in query - queryProject`, error)
+    }
   }
 
   if (inactive) return <></>;
