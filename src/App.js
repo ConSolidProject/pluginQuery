@@ -8,9 +8,10 @@ import {
   FormGroup,
   FormControlLabel,
 } from "@material-ui/core";
-import v4 from "uuid"
+import v4 from "uuid";
 import { translate } from "sparqlalgebrajs";
-const packageJSON = require("../package.json");
+import { getDistributionsByMediaType, findReferenceEndpoints } from "consolid";
+
 const initialQuery = `
 PREFIX beo: <https://pi.pauwel.be/voc/buildingelement#>
 SELECT ?element 
@@ -22,7 +23,16 @@ WHERE {
 const newEngine = require("@comunica/actor-init-sparql").newEngine;
 
 const Plugin = ({ sharedProps, inactive }) => {
-  const { session, activeResources, setSelectedElements, selectedElements, project, setSelectionId, store } = sharedProps;
+  const {
+    session,
+    datasets,
+    setSelectedElements,
+    selectedElements,
+    projects,
+    setSelectionId,
+    store,
+  } = sharedProps;
+  
   const [query, setQuery] = useState(initialQuery);
   const [includeMeta, setIncludeMeta] = useState(false);
   const [includeMain, setIncludeMain] = useState(false);
@@ -30,9 +40,14 @@ const Plugin = ({ sharedProps, inactive }) => {
   const [variables, setVariables] = useState([]);
   const [propagate, setPropagate] = useState(false);
   const [propagateImmediate, setPropagateImmediate] = useState(false);
-  const [error, setError] = useState(null)
+  const [error, setError] = useState(null);
 
+  const project = projects[Object.keys(projects)[0]]
+  //Object.keys(project).map((p) => {
+  //   return project[p].ref.accessURL
+  // })
   function handleChange(e) {
+
     setQuery(e.target.value);
   }
 
@@ -44,7 +59,7 @@ const Plugin = ({ sharedProps, inactive }) => {
         })
         .map((e) => e.name);
       const translation = translate(query);
-      setError(null)
+      setError(null);
       setVariables(
         translation.variables.map((e) => {
           return {
@@ -54,56 +69,87 @@ const Plugin = ({ sharedProps, inactive }) => {
         })
       );
     } catch (error) {
-      setError(error.message)
+      setError(error.message);
     }
   }, [query]);
 
-  async function doPropagateImmediate(binding, queryId) {
-    try {
-      const values = variables
-      .filter((variable) => {
-        return variable.checked;
-      })
-      .map((e) => binding.get(`?${e.name}`).id);
-      const bindingResult = []
-    for (const item of values) {
-      const le_qe = newEngine()
-      // find link element in props.ttl of
+  function extractIdentifiers(bindings) {
+    const identifiers = []
+    for (const v of variables) {
+      if (v.checked) {
+        for (const b of bindings)
+        identifiers.push(b[v.name].value)
+      }
 
-      const linkElementQuery = `
-        PREFIX lbd: <https://lbdserver.org/vocabulary#>
-        PREFIX owl: <http://www.w3.org/2002/07/owl#>
-        SELECT DISTINCT ?art ?alias WHERE {
-          ?art lbd:hasLinkElement ?le .
-          ?le lbd:hasIdentifier ?id . 
-          ?id lbd:identifier <${item}> .
-
-          OPTIONAL { ?art owl:sameAs ?alias }
-        }`;
-
-      // const sources = [...activeResources.map(a => a.artefactRegistry)]
-      const le_results = await le_qe.query(linkElementQuery, {sources: [store] });
-      le_qe.invalidateHttpCache()
-      const bindings = await le_results.bindings()
-      bindings.forEach((bind)  => {
-        const art = bind.get("?art").id;
-        try {
-          const alias = bind.get("?alias").id
-          bindingResult.push({global: [alias], selectionId: queryId})
-        } catch (error) {
-          
-        }
-        // actually you need to find the aliases (sameAs) as well
-        // so it is an array
-        bindingResult.push({global: [art], selectionId: queryId})
-      })
-      // return bindingResult
-      return bindingResult
     }
-    } catch (error) {
-        console.log(`error in query - doPropagateImmediate`, error)
-    }
+    return identifiers
   }
+
+  // async function doPropagateImmediate(binding, queryId) {
+  //   try {
+  //     const values = variables
+  //       .filter((variable) => {
+  //         return variable.checked;
+  //       })
+  //       .map((e) => binding[e.name].value);
+  //     const bindingResult = [];
+  //     for (const item of values) {
+  //       const le_qe = newEngine();
+  //       // find link element in props.ttl of
+
+  //       const linkElementQuery = `
+  //       PREFIX lbd: <https://lbdserver.org/vocabulary#>
+  //       PREFIX owl: <http://www.w3.org/2002/07/owl#>
+  //       SELECT ?art ?alias WHERE {
+  //         ?art lbd:hasReference ?le .
+  //         ?le lbd:hasIdentifier ?id . 
+  //         ?id lbd:identifier <${item}> .
+
+  //         OPTIONAL { ?art owl:sameAs ?alias }
+  //       }`;
+
+  //       // const sources = [...datasets.map(a => a.artefactRegistry)]
+  //       for (const ref of references) {
+  //         const url = encodeURI(ref + linkElementQuery).replaceAll("#", "%23")
+  //         const data = await session.fetch(url)
+  //         const bindings = await data.json()
+  //         bindings.results.bindings.forEach(bind => {
+  //           const thing = {}
+  //           const art = bind["art"].value;
+  //           thing.global = [art]
+  //           thing.selectionId = queryId
+  //           try {
+  //             const alias = bind["alias"].value;
+  //             thing.global.push(alias)
+  //           } catch (error) {}
+  //             bindingResult.push(thing)
+  //         })
+  //       }
+
+
+
+  //       // const le_results = await le_qe.query(linkElementQuery, {
+  //       //   sources: references, fetch: session.fetch
+  //       // });
+  //       // const bindings = await le_results.bindings();
+  //       // bindings.forEach((bind) => {
+  //       //   const thing = {}
+  //       //   const art = bind.get("?art").id;
+  //       //   thing.global = [art]
+  //       //   thing.selectionId = queryId
+  //       //   try {
+  //       //     const alias = bind.get("?alias").id;
+  //       //     thing.global.push(alias)
+  //       //   } catch (error) {}
+  //       //     bindingResult.push(thing)
+  //       // });
+  //       // return bindingResult
+  //     }
+  //     return bindingResult;
+  //   } catch (error) {
+  //     console.log(`error in query - doPropagateImmediate`, error);
+  //   }
+  // }
 
   // async function propagateQuery(results, queryId) {
   //   // flatten the list of results & reduce the query to only those variables that are checked
@@ -114,7 +160,7 @@ const Plugin = ({ sharedProps, inactive }) => {
   //       return variable.checked;
   //     })
   //     .map((e) => binding.get(`?${e.name}`).id);
-      
+
   //   for (const item of values) {
   //     const le_qe = newEngine()
   //     // find link element in props.ttl of
@@ -122,10 +168,9 @@ const Plugin = ({ sharedProps, inactive }) => {
   //       PREFIX lbd: <https://lbdserver.org/vocabulary#>
   //       SELECT ?art WHERE {
   //         ?art lbd:hasLinkElement ?le .
-  //         ?le lbd:hasIdentifier ?id . 
+  //         ?le lbd:hasIdentifier ?id .
   //         ?id lbd:identifier <${item}> .
   //       }`;
-
 
   //     const le_results = await le_qe.query(linkElementQuery, {sources: [store]});
   //     console.log(`le_results`, le_results)
@@ -141,37 +186,60 @@ const Plugin = ({ sharedProps, inactive }) => {
   //   }
   // }
 
-
   async function queryProject(e) {
     try {
-      setSelectedElements([])
+      setSelectedElements([]);
       setQueryResults([]);
-      const queryId = v4()
-      setSelectionId(queryId)
+      const queryId = v4();
+      setSelectionId(queryId);
       const queryEngine = newEngine();
-  
-      // query only active resouces that are RDF (Future: better mime type extractor than relying on extension)
-      const RDFsources = activeResources.filter((e) => {
-        return e.main.endsWith(".ttl");
-      });
-  
 
+      const filtered = await getDistributionsByMediaType(datasets, "text/turtle", session)
 
-      // query the RDF sources that are selected, use the selected query
-      const results = await queryEngine.query(query, {
-        sources: RDFsources.map((el) => el.main),
-      });
-  
-      queryEngine.invalidateHttpCache()
-  
-      let res = await results.bindings()
-      setQueryResults(res)
-      const promisified = res.map((binding) => doPropagateImmediate(binding, queryId)) 
-      const finalSelectionArray = await Promise.all(promisified)
-      const finalSelection = finalSelectionArray.flat()
-      setSelectedElements(finalSelection)
+      let result = []
+      let queryResults
+      if (filtered.length > 0) {
+        for (const item of filtered) {
+          const url = encodeURI(item.url + query).replaceAll("#", "%23")
+          const r = await session.fetch(url).then(res => res.json())
+          console.log(`r`, r)
+          queryResults = r.results.bindings
+          const identifiers = extractIdentifiers(r.results.bindings)
+          result.push({dataset: item.dataset, identifiers})
+        }
+      }
+
+      // // query the RDF sources that are selected, use the selected query
+      // if (download.length > 0) {
+      //   for (const item of download) {
+      //     const r = await queryEngine.query(query, {
+      //       sources: [item.downloadURL],
+      //     }).then(res => res.json())
+      //     const identifiers = extractIdentifiers(r.results.bindings)
+      //     result.push({dataset: item.dataset, identifiers})
+      //   }
+      // }
+
+      setQueryResults(queryResults);
+      console.log(`JSON.stringify({selection: result})`, JSON.stringify({selection: result}))
+      const finalSelection = []
+      const references = await findReferenceEndpoints(project, session)
+
+      for (const ref of references) {
+        const options = {
+          headers: {
+            "Content-Type": "application/json"
+          },
+          method: "POST",
+          body: JSON.stringify({selection: result})
+        }
+        const stakeholderSelection = await session.fetch(ref, options).then(r => r.json())
+        finalSelection.push(stakeholderSelection)
+      }
+      setSelectedElements(finalSelection.flat())
+
     } catch (error) {
-      console.log(`error in query - queryProject`, error)
+      console.log(`error in query - queryProject`, error);
     }
   }
 
@@ -226,9 +294,9 @@ const Plugin = ({ sharedProps, inactive }) => {
         >
           Query
         </Button>
-        <ul style={{overflowY: "scroll", maxHeight: 500, fontSize: 12}}>
+        <ul style={{ overflowY: "scroll", maxHeight: 500, fontSize: 12 }}>
           {queryResults.map((item, index) => {
-            return <li key={index}>{JSON.stringify(item)}</li>
+            return <li key={index}>{JSON.stringify(item)}</li>;
           })}
         </ul>
       </div>

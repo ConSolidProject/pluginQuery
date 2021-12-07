@@ -12,8 +12,8 @@ const projects = atom({
     default: ["http://localhost:5000/jeroen/lbd/f65db6eb-fc13-4ee7-955a-cf93fdf29d5b/"]
 })
 
-const activeResources = atom({
-    key: "activeResources",
+const datasets = atom({
+    key: "datasets",
     default: [{main: "https://pod.lbdserver.org/jeroen/lbd/f65db6eb-fc13-4ee7-955a-cf93fdf29d5b/architectural_duplex.ttl", metadata: "https://pod.lbdserver.org/jeroen/lbd/f65db6eb-fc13-4ee7-955a-cf93fdf29d5b/architectural_duplex.ttl.props.ttl"}]
 })
 
@@ -37,4 +37,4 @@ const store = atom({
     default: new N3.Store()
 })
 
-export {session, projects, activeResources, selectedElements, selectionId, trigger, store}
+export {session, projects, datasets, selectedElements, selectionId, trigger, store}

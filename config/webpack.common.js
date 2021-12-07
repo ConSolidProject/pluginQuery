@@ -57,10 +57,7 @@ module.exports = {
       fs: require.resolve("browserify-fs"),
       https: require.resolve("https-browserify"),
       http: require.resolve("stream-http"),
-    },
-    // alias: {
-    //   consolid: "/home/jmauwerb/Documents/LBDserver/consolid"
-    // }
+    }
   },
   module: {
     rules: [
