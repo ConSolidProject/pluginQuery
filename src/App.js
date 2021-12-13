@@ -10,7 +10,7 @@ import {
 } from "@material-ui/core";
 import v4 from "uuid";
 import { translate } from "sparqlalgebrajs";
-import { getDistributionsByMediaType, findReferenceEndpoints } from "consolid";
+import { getDistributionsByMediaType, findReferenceEndpoints, getLdpMembers } from "consolid";
 
 const initialQuery = `
 PREFIX beo: <https://pi.pauwel.be/voc/buildingelement#>
@@ -188,19 +188,21 @@ const Plugin = ({ sharedProps, inactive }) => {
 
   async function queryProject(e) {
     try {
+      console.log("query project")
       setSelectedElements([]);
       setQueryResults([]);
       const queryId = v4();
       setSelectionId(queryId);
       const queryEngine = newEngine();
 
-      const filtered = await getDistributionsByMediaType(datasets, "text/turtle", session)
+      const filtered = await getDistributionsByMediaType(datasets, ["text/turtle"], session)
 
       let result = []
       let queryResults
       if (filtered.length > 0) {
         for (const item of filtered) {
           const url = encodeURI(item.url + query).replaceAll("#", "%23")
+          console.log(`url`, url)
           const r = await session.fetch(url).then(res => res.json())
           console.log(`r`, r)
           queryResults = r.results.bindings
@@ -221,10 +223,10 @@ const Plugin = ({ sharedProps, inactive }) => {
       // }
 
       setQueryResults(queryResults);
-      console.log(`JSON.stringify({selection: result})`, JSON.stringify({selection: result}))
       const finalSelection = []
-      const references = await findReferenceEndpoints(project, session)
-
+      const part = await getLdpMembers(project, session)
+      const references = await findReferenceEndpoints(part, session)
+      console.log(`references`, references)
       for (const ref of references) {
         const options = {
           headers: {
@@ -233,7 +235,16 @@ const Plugin = ({ sharedProps, inactive }) => {
           method: "POST",
           body: JSON.stringify({selection: result})
         }
-        const stakeholderSelection = await session.fetch(ref, options).then(r => r.json())
+        const stakeholderSelection = await session.fetch(ref + '/storage/query', options).then(r => r.json())
+
+        if (stakeholderSelection.length > 0 && stakeholderSelection[0].alias) {
+          for (const a of stakeholderSelection[0].alias) {
+            console.log(`a`, a)
+            const alias = await session.fetch(a).then(i => i.json())
+            console.log(`alias`, alias)
+            finalSelection.push(alias)
+          }
+        }
         finalSelection.push(stakeholderSelection)
       }
       setSelectedElements(finalSelection.flat())
